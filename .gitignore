@@ -1,0 +1,30 @@
+# Ignore ply files
+*.ply
+
+# Ignore OS X filesystem cache
+.DS_Store
+
+# Ignore qmake stash
+.qmake.stash
+
+# Ignore object files
+*.o
+
+# Ignore generated meta object files
+*.moc
+moc_*.cpp
+moc_*.h
+
+# Ignore generated UI files
+ui_*.h
+
+# Ignore generated resource files
+qrc_*.cpp
+
+# Ignore generated Makefile
+Makefile
+
+# Ignore Qt Creator preference file
+*.pro.user
+*.pro.user.*
+
