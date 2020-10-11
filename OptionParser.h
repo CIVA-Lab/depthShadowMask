@@ -28,6 +28,14 @@ public:
     m_parser.addOption(option);
   }
 
+  void addOption(const QString& longName,
+                 const QString description, const QString& valueName)
+  {
+    QCommandLineOption option(QStringList() << longName,
+                              description, valueName);
+    m_parser.addOption(option);
+  }
+
   template<typename T>
   void addOption(QChar shortName, const QString& longName,
                  const QString description, const QString& valueName,
@@ -39,6 +47,23 @@ public:
     stream << defaultValue;
 
     QCommandLineOption option(QStringList() << shortName << longName,
+                              description +
+                              " (Default: " + defaultString + ")", valueName,
+                              defaultString);
+    m_parser.addOption(option);
+  }
+
+  template<typename T>
+  void addOption(const QString& longName,
+                 const QString description, const QString& valueName,
+                 const T& defaultValue)
+  {
+    QString defaultString;
+    QTextStream stream(&defaultString);
+
+    stream << defaultValue;
+
+    QCommandLineOption option(QStringList() << longName,
                               description +
                               " (Default: " + defaultString + ")", valueName,
                               defaultString);
