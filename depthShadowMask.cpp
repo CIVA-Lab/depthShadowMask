@@ -366,12 +366,27 @@ int main(int argc, char *argv[])
   QCoreApplication a(argc, argv);
 
   float voxelSize = 1.0;
+  float depthDimension = 1024.0;
+  float bias = 0.005;
+  // Values are for TS ABQ dataset
+  double azimuth = 183.29;
+  double elevation = 62.16;
+
+  QString depthMapPath;
+
   OptionParser options;
+  options.addOption('a', "azimuth", "Sun azimuth", "degrees", azimuth);
+  options.addOption('b', "bias", "Depth bias", "bias", bias);
   options.addOption('c', "camera", "Camera krt file", "camera");
-//  options.addOption('o', "output", "Output image", "file");
+  options.addOption('d', "dmapsize", "Width of depthmap", "size",
+                    depthDimension);
+  options.addOption('e', "elevation", "Sun elevation", "degrees", elevation);
+  options.addOption('o', "output", "Output mask image", "file");
   options.addOption('p', "ply", "PLY file", "file");
   options.addOption('r', "resolution", "Voxel size", "size", voxelSize);
-  options.addOption('s', "scale", "Image scale", "scale", 1.0);
+  options.addOption('s', "scale", "Output image scale", "scale", 1.0);
+  options.addOption("depthmap", "Output path for depthmap (optional)", "file");
+
 //  options.addOption('k', "krt", "Directory containing KRt files", "path");
 //  options.addOption('i', "images", "Directory containing images.", "path");
 
@@ -407,15 +422,29 @@ int main(int argc, char *argv[])
   options.getOptionalValue("resolution", &voxelSize);
 
   // Get output path
-//  QString outputPath;
-//  options.getRequiredValue("output", &outputPath);
-//  qDebug() << "Saving image as" << outputPath;
+  QString outputPath;
+  options.getRequiredValue("output", &outputPath);
+  qDebug() << "Saving image as" << outputPath;
 
   // Get optional camera scale
   float cameraScale = 1.0;
   options.getOptionalValue("scale", &cameraScale);
   krt = krt.scaled(cameraScale);
   Camera krtCamera(krt);
+
+  // Get optional depthmap size
+  options.getOptionalValue("dmapsize", &depthDimension);
+
+  // Get optional bias
+  options.getOptionalValue("bias", &bias);
+
+  // Get optional output for depthmap
+  QString outputDepthMap;
+  options.getOptionalValue("depthmap", &outputDepthMap);
+
+  // Get sun position
+  options.getOptionalValue("azimuth", &azimuth);
+  options.getOptionalValue("elevation", &elevation);
 
 
 //  Camera camera = camera.scaled(cameraScale);
@@ -433,18 +462,15 @@ int main(int argc, char *argv[])
   qDebug() << "PLY file contains" << qLocalized(ply.vertexCount())
            << "vertices.";
 
-  QVector3D center = min + (max - min)/2.0;
+//  QVector3D center = min + (max - min)/2.0;
 
-  QSizeF shadowDepthSize(2048, 2048);
+  QSizeF shadowDepthSize(depthDimension, depthDimension);
+
   QMatrix4x4 projection;
   projection.viewport(QRectF(QPointF(0, 0), shadowDepthSize));
 //  projection.ortho(-500, 500, 500, -500, 0.001, 10000.0);
 //  projection.ortho(min.x(), max.x(), max.y(), min.y(), min.z(), max.z());
   projection.ortho(min.x(), max.x(), max.y(), min.y(), 0.001, 1000.0);
-
-  // Values are for TS ABQ dataset
-  double azimuth = 183.29;
-  double elevation = 62.16;
 
   QMatrix4x4 lightView;
 
@@ -479,7 +505,8 @@ int main(int argc, char *argv[])
     depthProgress.update(v);
   }
 
-  saveDepth(depthArray, "OrthoDepth.png");
+  // Optionally save depth map image
+  if(!outputDepthMap.isEmpty()) saveDepth(depthArray, outputDepthMap);
 
   // For each voxel, determine visibility from
   Array2D<double> krtDepthArray(krtCamera.imagePlaneSize());
@@ -490,16 +517,12 @@ int main(int argc, char *argv[])
 
   qDebug() << "Rendering voxel positions...";
 
-  int progressInterval = qMax(ply.vertexCount()/100.0, 1.0);
-
   TextProgress positionProgress(ply.vertexCount(), 100);
 
   // For each voxel in point cloud
   for(int v = 0, count = ply.vertexCount(); v < count; ++v)
   {
     Cube c(QVector3D(x.at(v), y.at(v), z.at(v)), voxelSize/2.0);
-//    if((v % progressInterval) == 0)
-//      qDebug() << "Rendering voxel position" << v << "/" << count;
 
     // Save 3D position of visible voxel
     renderVoxelPosition(krtCamera, c, positionArray);
@@ -535,7 +558,6 @@ int main(int argc, char *argv[])
       float bufferDepth = depthArray(lightPlanePosition.x(),
                                      lightPlanePosition.y());
 
-      float bias = 0.005;
       if(bufferDepth < (lightDistance - bias))
       {
         // 3D position is in shadow
@@ -545,7 +567,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  shadowMask.save("shadowMask.png");
+  shadowMask.save(outputPath);
 
   qDebug() << "done";
 
